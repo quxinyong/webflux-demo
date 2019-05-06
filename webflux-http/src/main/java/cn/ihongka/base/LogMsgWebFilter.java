@@ -1,5 +1,6 @@
 package cn.ihongka.base;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -14,11 +15,9 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
 import static reactor.core.scheduler.Schedulers.single;
 
 /**
@@ -44,33 +43,41 @@ public class LogMsgWebFilter implements WebFilter {
         HttpMethod method = exchange.getRequest().getMethod();
         HttpHeaders headers = exchange.getRequest().getHeaders();
         MediaType contentType = headers.getContentType();
-
+        Mono<Map<String, Object>> datas;
         if (MediaType.APPLICATION_JSON.equals(contentType) || MediaType.APPLICATION_JSON_UTF8.equals(contentType)) {
             // body-json：application/json，POST 请求
             Flux<DataBuffer> jsonFlux = exchange.getRequest().getBody();
-//            DataBuffer dataBuffer=null;
-//            byte[] bytes=new byte[dataBuffer.readableByteCount()];
-//            dataBuffer.read(bytes);
-//            DataBufferUtils.release(dataBuffer);
-            jsonFlux
+            datas = jsonFlux
                     .publishOn(single())
+                    .single()
                     .map(this::jsonObject);
         } else {
             //query-data：GET 请求
             // body-multipart-data：multipart/form-data，POST 请求
             // body-json：application/json，POST 请求
-            Mono<Map<String, Object>> datas = WebExchangeDataBinder.extractValuesToBind(exchange);
+            datas = WebExchangeDataBinder.extractValuesToBind(exchange);
+        }
+//        return Mono.empty();
+        return datas.flatMap(data -> processData(data));
+    }
+
+    private Mono<Void> processData(Map<String, Object> data) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            String jsonStr = objectMapper.writeValueAsString(data);
+            log.info(jsonStr);
+        } catch (JsonProcessingException e) {
+            log.error("", e);
         }
         return Mono.empty();
     }
 
     private Map<String, Object> jsonObject(DataBuffer buffer) {
-
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> json = null;
         try {
             json = mapper.readValue(buffer.asInputStream(), HashMap.class);
-            System.out.println(json);
+            return json;
         } catch (IOException e) {
             log.error("", e);
         }
