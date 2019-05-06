@@ -58,7 +58,7 @@ public class LogMsgWebFilter implements WebFilter {
             datas = WebExchangeDataBinder.extractValuesToBind(exchange);
         }
 //        return Mono.empty();
-        return datas.flatMap(data -> processData(data));
+        return datas.flatMap(this::processData);
     }
 
     private Mono<Void> processData(Map<String, Object> data) {
