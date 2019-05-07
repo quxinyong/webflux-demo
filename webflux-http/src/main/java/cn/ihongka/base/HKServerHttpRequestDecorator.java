@@ -35,7 +35,7 @@ public class HKServerHttpRequestDecorator extends ServerHttpRequestDecorator {
     private InputStream dataBuffer;
     private DataBuffer bodyDataBuffer;
     private int getBufferTime = 0;
-    private byte[] bytes;
+    private byte[] bytes=new byte[]{};
 
     public HKServerHttpRequestDecorator(ServerHttpRequest delegate) {
         super(delegate);
@@ -43,12 +43,13 @@ public class HKServerHttpRequestDecorator extends ServerHttpRequestDecorator {
 
     @Override
     public Flux<DataBuffer> getBody() {
-//        return Flux.just(dataBuffer);
         if (getBufferTime == 0) {
             getBufferTime++;
             Flux<DataBuffer> flux = super.getBody();
+            NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
             return flux
                     .publishOn(single())
+                    .defaultIfEmpty(nettyDataBufferFactory.wrap("{}".getBytes()))
                     .map(this::cache)
                     .doOnComplete(() -> trace(getDelegate(), cachedCopy.toString()));
         } else {
@@ -71,7 +72,7 @@ public class HKServerHttpRequestDecorator extends ServerHttpRequestDecorator {
 //         Map<String,Object> json = mapper.readValue(dataBuffer, HashMap.class);
             bytes = IOUtils.toByteArray(dataBuffer);
             NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
-            cachedCopy.write(IOUtils.toString(dataBuffer, StandardCharsets.UTF_8.name()));
+//            cachedCopy.write(IOUtils.toString(dataBuffer, StandardCharsets.UTF_8.name()));
             bodyDataBuffer = nettyDataBufferFactory.wrap(bytes);
             return bodyDataBuffer;
         } catch (IOException e) {

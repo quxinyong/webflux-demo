@@ -30,9 +30,10 @@ public class PersonController {
     private PersonRepository repository;
 
     @PostMapping("/person")
-    public Flux<DataBuffer> create(ServerHttpRequest request, @RequestBody Person person) {
+    public Flux<Void> create(ServerHttpRequest request, Person person) {
 //        return this.repository.save(personStream).then();
-        return request.getBody();
+//        return request.getBody();
+        return Flux.empty();
     }
 
     @PostMapping("/data")
